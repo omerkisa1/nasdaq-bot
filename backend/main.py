@@ -12,8 +12,9 @@ from core.redis_client import close_redis
 from core.ws_manager import ws_manager
 from db import repo
 from engine.monitor import run_monitor_cycle
+from engine.news_watcher import run_news_watch_cycle
 from engine.scanner import run_scan
-from routers import cards, quote, scan, settings as settings_router, stats
+from routers import analyze, cards, quote, scan, settings as settings_router, stats
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,10 +40,20 @@ async def _scheduled_monitor() -> None:
         logger.exception("İzleme döngüsü hata verdi")
 
 
+async def _scheduled_news_watch() -> None:
+    try:
+        await run_news_watch_cycle()
+    except Exception:
+        logger.exception("Haber izleme döngüsü hata verdi")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler.add_job(_scheduled_scan, "interval", seconds=settings.scan_interval_sec, id="scan")
     scheduler.add_job(_scheduled_monitor, "interval", seconds=settings.monitor_interval_sec, id="monitor")
+    scheduler.add_job(
+        _scheduled_news_watch, "interval", seconds=settings.news_watch_interval_sec, id="news_watch"
+    )
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)
@@ -57,6 +68,7 @@ app.include_router(stats.router)
 app.include_router(settings_router.router)
 app.include_router(scan.router)
 app.include_router(quote.router)
+app.include_router(analyze.router)
 
 
 @app.get("/api/health")

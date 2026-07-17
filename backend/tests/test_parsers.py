@@ -1,6 +1,6 @@
 import pytest
 
-from core.parsers import parse_date, parse_price, parse_volume
+from core.parsers import parse_date, parse_price, parse_range, parse_volume
 
 
 @pytest.mark.parametrize(
@@ -36,3 +36,16 @@ def test_parse_volume(raw, expected):
 def test_parse_date():
     assert parse_date("06/18/2026") == "2026-06-18"
     assert parse_date("01/01/2025") == "2025-01-01"
+
+
+def test_parse_range_with_dollar_signs():
+    assert parse_range("$4.10-$4.60") == pytest.approx((4.10, 4.60))
+
+
+def test_parse_range_with_spaces():
+    assert parse_range("4.10 - 4.60") == pytest.approx((4.10, 4.60))
+
+
+def test_parse_range_invalid_returns_none():
+    assert parse_range("N/A") is None
+    assert parse_range("") is None

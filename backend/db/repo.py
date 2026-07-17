@@ -135,3 +135,26 @@ async def get_scan_runs(limit: int = 20) -> list[dict]:
 
     resp = await _run(_query)
     return resp.data
+
+
+async def insert_news_event(event: dict) -> dict | None:
+    """symbol+external_id çakışırsa (dup) sessizce atlar."""
+
+    def _query():
+        return (
+            get_supabase()
+            .table("news_events")
+            .upsert(event, on_conflict="symbol,external_id", ignore_duplicates=True)
+            .execute()
+        )
+
+    resp = await _run(_query)
+    return resp.data[0] if resp.data else None
+
+
+async def update_news_event(event_id: int, patch: dict) -> dict:
+    def _query():
+        return get_supabase().table("news_events").update(patch).eq("id", event_id).execute()
+
+    resp = await _run(_query)
+    return resp.data[0]

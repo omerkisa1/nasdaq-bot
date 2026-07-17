@@ -13,6 +13,7 @@ def compute_stats(cards: list[dict]) -> dict:
     win_rate = wins / decided if decided else 0.0
 
     by_horizon: dict[str, dict] = {}
+    by_trigger_source: dict[str, dict] = {}
     for c in cards:
         h = c["horizon"]
         bucket = by_horizon.setdefault(h, {"count": 0, "wins": 0, "total_r": 0.0})
@@ -21,6 +22,14 @@ def compute_stats(cards: list[dict]) -> dict:
             bucket["wins"] += 1
         if c.get("realized_r") is not None:
             bucket["total_r"] += c["realized_r"]
+
+        source = c.get("trigger_source", "scan")
+        source_bucket = by_trigger_source.setdefault(source, {"count": 0, "wins": 0, "total_r": 0.0})
+        source_bucket["count"] += 1
+        if c["status"] == "TARGET_HIT":
+            source_bucket["wins"] += 1
+        if c.get("realized_r") is not None:
+            source_bucket["total_r"] += c["realized_r"]
 
     return {
         "total": total,
@@ -32,4 +41,5 @@ def compute_stats(cards: list[dict]) -> dict:
         "avg_r": round(avg_r, 4),
         "total_r": round(total_r, 4),
         "by_horizon": by_horizon,
+        "by_trigger_source": by_trigger_source,
     }

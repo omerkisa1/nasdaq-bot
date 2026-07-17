@@ -7,6 +7,12 @@ import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import CardPriceBar from "./CardPriceBar";
 
+const TRIGGER_BADGE: Record<string, string> = {
+  scan: "📡",
+  news: "📰",
+  manual: "👤",
+};
+
 const HORIZON_LABEL: Record<string, string> = {
   "30m": "30dk",
   "2h": "2sa",
@@ -50,6 +56,7 @@ export default function TradeCard({ card, onOpenDetail }: { card: TradeCardType;
     >
       <div className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
+          <span title={card.trigger_source}>{TRIGGER_BADGE[card.trigger_source] || "📡"}</span>
           <span className="text-lg font-semibold">{card.symbol}</span>
           {card.company_name && <span className="text-sm text-zinc-500">· {card.company_name}</span>}
         </div>

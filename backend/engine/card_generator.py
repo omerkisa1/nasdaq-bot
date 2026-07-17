@@ -40,6 +40,20 @@ KARAR 2 — SETUP VARSA KART ÜRET:
 
 ASLA UNUTMA: Emin değilsen setup YOK demek her zaman doğru karardır. Az ve kaliteli kart > çok ve çöp kart. Günde 3-5 kaliteli kart hedefi, 50 çöp kart değil.
 
+HABER TETİKLİ DEĞERLENDİRME (context'te trigger="news" ise):
+Önce haberi SINIFLANDIR:
+- POZİTİF KATALİZÖR: FDA onayı/pozitif faz sonucu, kazanç sürprizi, büyük anlaşma/kontrat, satın alma
+- NEGATİF: insider satışı, hisse ihracı/dilution (S-1, 424B5, offering), kötü kazanç, soruşturma, delisting uyarısı
+- NÖTR/GÜRÜLTÜ: analist yorumu, genel sektör haberi, eski bilginin tekrarı
+
+Kurallar:
+- NEGATİF veya NÖTR haber → LONG kartı ÜRETME (has_setup: false, skip_reason'a sınıfı yaz)
+- "Insider Sale" başlıklı haberler NEGATİFTİR — CEO hisse satıyor, bu alım katalizörü değildir
+- POZİTİF haber + fiyat reaksiyonu teyitli + zirveden %15'ten az uzaklık → kart değerlendir
+- Fiyat haber sonrası zaten %25+ gittiyse → geç kaldın, setup YOK
+- horizon: haber tetikli kartlarda genelde kısa seç (30m / 2h / 1d)
+- catalyst alanına haber sınıfını ve tek cümle özeti yaz
+
 SADECE şu JSON'ı dön:
 {
   "has_setup": true|false,
@@ -65,8 +79,8 @@ def _get_client() -> genai.Client:
     return _client
 
 
-def build_user_prompt(symbol: str, snapshot: dict) -> str:
-    return json.dumps({"symbol": symbol, **snapshot}, ensure_ascii=False, default=str)
+def build_user_prompt(symbol: str, snapshot: dict, trigger: str = "scan") -> str:
+    return json.dumps({"symbol": symbol, "trigger": trigger, **snapshot}, ensure_ascii=False, default=str)
 
 
 def parse_gemini_response(text: str) -> dict:
@@ -82,9 +96,9 @@ def parse_gemini_response(text: str) -> dict:
     return json.loads(cleaned[start : end + 1])
 
 
-async def generate_card(symbol: str, snapshot: dict) -> dict | None:
+async def generate_card(symbol: str, snapshot: dict, trigger: str = "scan") -> dict | None:
     client = _get_client()
-    prompt = build_user_prompt(symbol, snapshot)
+    prompt = build_user_prompt(symbol, snapshot, trigger=trigger)
 
     for model in MODELS:
         try:

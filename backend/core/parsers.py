@@ -24,3 +24,16 @@ def parse_volume(s: str | int) -> int:
 def parse_date(s: str) -> str:
     """"06/18/2026" -> "2026-06-18" """
     return datetime.strptime(s.strip(), "%m/%d/%Y").strftime("%Y-%m-%d")
+
+
+def parse_range(s: str) -> tuple[float, float] | None:
+    """"$4.10-$4.60" / "4.10 - 4.60" -> (4.10, 4.60)"""
+    if not s:
+        return None
+    parts = s.replace("$", "").replace(",", "").split("-")
+    if len(parts) != 2:
+        return None
+    try:
+        return float(parts[0].strip()), float(parts[1].strip())
+    except ValueError:
+        return None

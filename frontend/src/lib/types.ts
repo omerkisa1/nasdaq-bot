@@ -8,6 +8,8 @@ export type CardStatus =
 
 export type Horizon = "30m" | "2h" | "1d" | "2d" | "3d";
 
+export type TriggerSource = "scan" | "news" | "manual";
+
 export interface NewsItem {
   headline: string;
   summary: string;
@@ -42,6 +44,7 @@ export interface TradeCard {
   realized_r: number | null;
   created_at: string;
   resolved_at: string | null;
+  trigger_source: TriggerSource;
   current_price?: number;
   pct_to_target?: number;
   pct_to_stop?: number;
@@ -63,7 +66,26 @@ export interface Stats {
   avg_r: number;
   total_r: number;
   by_horizon: Record<string, HorizonStats>;
+  by_trigger_source: Record<string, HorizonStats>;
   last_30d: Omit<Stats, "last_30d">;
+}
+
+export interface ContextSummary {
+  price: number;
+  rvol: number;
+  atr: number;
+  key_levels: { support: number | null; resistance: number | null };
+  news: { headline: string; source: string; classification: string }[];
+  warnings: string[];
+}
+
+export interface AnalyzeResponse {
+  symbol: string;
+  verdict: "setup" | "no_setup";
+  skip_reason: string | null;
+  card_draft: TradeCard | null;
+  context_summary: ContextSummary | null;
+  analyzed_at: string;
 }
 
 export interface Settings {

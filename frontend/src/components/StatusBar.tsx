@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { api } from "@/lib/api";
 
-export default function StatusBar() {
+export default function StatusBar({ onAnalyze }: { onAnalyze: (symbol: string) => void }) {
+  const [query, setQuery] = useState("");
   const health = useStore((s) => s.health);
   const stats = useStore((s) => s.stats);
   const settings = useStore((s) => s.settings);
@@ -23,6 +25,14 @@ export default function StatusBar() {
     if (!settings) return;
     const updated = await api.patchSettings({ scan_enabled: !settings.scan_enabled });
     setSettings(updated);
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const symbol = query.trim().toUpperCase();
+    if (!symbol) return;
+    onAnalyze(symbol);
+    setQuery("");
   }
 
   return (
@@ -50,12 +60,28 @@ export default function StatusBar() {
           </span>
         )}
       </div>
-      <button
-        onClick={toggleScan}
-        className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800"
-      >
-        {settings?.scan_enabled ? "⏸ Taramayı Durdur" : "▶ Taramayı Başlat"}
-      </button>
+      <div className="flex items-center gap-2">
+        <form onSubmit={handleSearch} className="flex items-center gap-1">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Sembol ara (örn. CRVO)"
+            className="w-40 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm placeholder:text-zinc-600"
+          />
+          <button
+            type="submit"
+            className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-sm hover:bg-zinc-800"
+          >
+            Analiz Et
+          </button>
+        </form>
+        <button
+          onClick={toggleScan}
+          className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-800"
+        >
+          {settings?.scan_enabled ? "⏸ Taramayı Durdur" : "▶ Taramayı Başlat"}
+        </button>
+      </div>
     </div>
   );
 }

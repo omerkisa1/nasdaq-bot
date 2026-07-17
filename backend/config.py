@@ -24,5 +24,12 @@ class Settings(BaseSettings):
     max_active_cards: int = 5
     liquidity_cap_pct: float = 2.0
 
+    news_watch_interval_sec: int = 60
+    news_watch_top_n: int = 30
+    news_reaction_window_sec: int = 120
+    news_reaction_min_pct: float = 2.0
+    news_gemini_max_per_hour: int = 10
+    manual_analysis_cooldown_sec: int = 300
+
 
 settings = Settings()

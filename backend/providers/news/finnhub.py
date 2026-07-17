@@ -14,7 +14,7 @@ class FinnhubNewsProvider(NewsProvider):
         client = get_client()
         return await client.get(BASE_URL, params=params)
 
-    async def get_news(self, symbol: str, hours_back: int = 48) -> list[NewsItem]:
+    async def get_news(self, symbol: str, hours_back: int = 48, limit: int = 10) -> list[NewsItem]:
         now = datetime.utcnow()
         frm = (now - timedelta(hours=hours_back)).strftime("%Y-%m-%d")
         to = now.strftime("%Y-%m-%d")
@@ -36,6 +36,7 @@ class FinnhubNewsProvider(NewsProvider):
                     source=entry.get("source", ""),
                     url=entry.get("url", ""),
                     datetime=entry.get("datetime", 0),
+                    external_id=str(entry.get("id")) if entry.get("id") is not None else None,
                 )
             )
-        return items
+        return items[:limit]

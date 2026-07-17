@@ -43,6 +43,23 @@ export default function StatsPanel() {
       </div>
 
       <div>
+        <h3 className="mb-2 text-sm font-medium text-zinc-300">Tetikleyiciye Göre</h3>
+        <div className="space-y-1">
+          {Object.entries(stats.by_trigger_source).map(([source, h]) => (
+            <div key={source} className="flex justify-between rounded bg-zinc-900 px-3 py-1.5 text-sm">
+              <span>
+                {source === "scan" ? "📡 Tarama" : source === "news" ? "📰 Haber" : "👤 Manuel"}
+              </span>
+              <span className="text-zinc-400">
+                %{h.count ? Math.round((h.wins / h.count) * 100) : 0} WR · {h.wins}/{h.count} ·{" "}
+                {h.total_r.toFixed(1)}R
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
         <h3 className="mb-2 text-sm font-medium text-zinc-300">Kümülatif R Eğrisi</h3>
         <EquityCurve />
       </div>

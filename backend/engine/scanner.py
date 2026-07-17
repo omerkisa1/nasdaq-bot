@@ -3,18 +3,22 @@ import time
 from datetime import date, timedelta
 
 from config import settings
-from core import redis_client
-from core.market_hours import can_open_horizon, horizon_to_expires_at, is_market_open
+from core import redis_client, state
+from core.market_hours import is_market_open
 from core.ws_manager import ws_manager
 from db import repo
-from engine import card_generator, metrics, prefilter, validator
+from engine import metrics, prefilter
+from engine.card_pipeline import build_card_row, evaluate_candidate
 from providers import nasdaq, tradingview, yahoo
 from providers.quotes import get_quote_with_fallback
+from providers.news.article_content import get_full_content
+from providers.news.chain import ChainedNewsProvider
 from providers.news.finnhub import FinnhubNewsProvider
+from providers.news.nasdaq_news import NasdaqNewsProvider
 
 logger = logging.getLogger(__name__)
 
-news_provider = FinnhubNewsProvider()
+news_provider = ChainedNewsProvider([NasdaqNewsProvider(), FinnhubNewsProvider()])
 
 
 def filter_candidates_for_processing(
@@ -73,6 +77,12 @@ async def build_snapshot(symbol: str) -> dict | None:
     except Exception:
         news_items = []
 
+    if news_items:
+        try:
+            news_items[0].summary = await get_full_content(news_items[0])
+        except Exception:
+            logger.warning("Makale tam içeriği alınamadı, özetle devam: %s", symbol)
+
     return {
         "quote": quote,
         "avg_daily_volume": avg_daily_volume,
@@ -97,52 +107,18 @@ async def _process_candidate(candidate: dict, settings_dict: dict) -> tuple[bool
     if snapshot is None:
         return False, False
 
-    gemini_result = await card_generator.generate_card(symbol, snapshot)
+    evaluation = await evaluate_candidate(symbol, snapshot, settings_dict, trigger_source="scan")
     await redis_client.set_cooldown(symbol, settings.gemini_symbol_cooldown_sec)
 
-    if gemini_result is None or not gemini_result.get("has_setup"):
+    if not evaluation.attempted_gemini:
+        return False, False
+    if not evaluation.has_setup:
         return True, False
 
-    card_data = gemini_result["card"]
-    if card_data.get("confidence", 0) < settings_dict.get("min_confidence", 0.5):
-        return True, False
-    if not can_open_horizon(card_data["horizon"]):
-        return True, False
-
-    result = validator.validate_card(
-        card_data,
-        current_price=snapshot["quote"]["last_sale_price"],
-        avg_daily_volume=snapshot["avg_daily_volume"],
-        account_size=settings_dict.get("account_size", settings.default_account_size),
-        risk_percent=settings_dict.get("risk_percent", settings.default_risk_percent),
-        liquidity_cap_pct=settings.liquidity_cap_pct,
+    row = build_card_row(
+        symbol, evaluation.card_data, evaluation.validation, snapshot,
+        company_name=candidate.get("description"), trigger_source="scan",
     )
-    if not result.valid:
-        logger.info("Kart reddedildi %s: %s", symbol, result.reason)
-        return True, False
-
-    expires_at = horizon_to_expires_at(card_data["horizon"])
-    row = {
-        "symbol": symbol,
-        "company_name": candidate.get("description"),
-        "direction": card_data.get("direction", "long"),
-        "entry_zone_low": card_data["entry_zone_low"],
-        "entry_zone_high": card_data["entry_zone_high"],
-        "stop": card_data["stop"],
-        "target_1": card_data["target_1"],
-        "target_2": card_data["target_2"],
-        "horizon": card_data["horizon"],
-        "expires_at": expires_at.isoformat(),
-        "confidence": card_data["confidence"],
-        "position_size": result.position_size,
-        "risk_amount": result.risk_amount,
-        "reasoning": card_data.get("reasoning"),
-        "invalidation": card_data.get("invalidation"),
-        "catalyst": card_data.get("catalyst"),
-        "news_context": snapshot["news"],
-        "snapshot": snapshot,
-        "price_at_creation": snapshot["quote"]["last_sale_price"],
-    }
     inserted = await repo.insert_card(row)
     await ws_manager.broadcast({"type": "card_created", "data": inserted})
     return True, True
@@ -156,6 +132,7 @@ async def run_scan(force: bool = False) -> dict:
         return {"skipped": True}
 
     universe = await tradingview.scan_universe(limit=200)
+    state.set_top_symbols([c["symbol"] for c in universe[: settings.news_watch_top_n]])
     prefiltered = prefilter.prefilter_universe(universe)
 
     active_symbols = await repo.get_active_card_symbols()

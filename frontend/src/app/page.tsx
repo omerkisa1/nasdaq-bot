@@ -8,6 +8,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import StatusBar from "@/components/StatusBar";
 import TradeCard from "@/components/TradeCard";
 import CardDetail from "@/components/CardDetail";
+import AnalyzeModal from "@/components/AnalyzeModal";
 import HistoryList from "@/components/HistoryList";
 import StatsPanel from "@/components/StatsPanel";
 import ScanLog from "@/components/ScanLog";
@@ -26,6 +27,7 @@ export default function Page() {
 
   const [tab, setTab] = useState<Tab>("history");
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [analyzeSymbol, setAnalyzeSymbol] = useState<string | null>(null);
 
   useWebSocket();
 
@@ -48,7 +50,7 @@ export default function Page() {
 
   return (
     <div className="mx-auto max-w-3xl pb-16">
-      <StatusBar />
+      <StatusBar onAnalyze={setAnalyzeSymbol} />
 
       <section className="px-4 py-4">
         <h2 className="mb-3 text-sm font-medium text-zinc-400">Aktif Kartlar</h2>
@@ -96,6 +98,7 @@ export default function Page() {
       </section>
 
       {detailId != null && <CardDetail cardId={detailId} onClose={() => setDetailId(null)} />}
+      {analyzeSymbol && <AnalyzeModal symbol={analyzeSymbol} onClose={() => setAnalyzeSymbol(null)} />}
       <Toast />
     </div>
   );
